@@ -1,0 +1,33 @@
+# Node / build
+node_modules/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# Env & local config
+.env
+.env.local
+.env.*.local
+
+# App data
+ai_eval.db
+data/uploads/
+data/system_docs/*.pdf
+!data/system_docs/.keep
+
+# Vector/embedding caches (optional patterns)
+*.cache
+.cache/
+**/.cache/
+huggingface/
+~/.cache/huggingface/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

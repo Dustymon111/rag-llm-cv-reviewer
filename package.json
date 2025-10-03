@@ -1,0 +1,48 @@
+{
+  "name": "llm-rag-cv-reviewer",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000r\u0000a\u0000g\u0000-\u0000l\u0000l\u0000m\u0000-\u0000c\u0000v\u0000-\u0000r\u0000e\u0000v\u0000i\u0000e\u0000w\u0000e\u0000r\u0000\r\u0000 \u0000",
+  "homepage": "https://github.com/Dustymon111/rag-llm-cv-reviewer#readme",
+  "bugs": {
+    "url": "https://github.com/Dustymon111/rag-llm-cv-reviewer/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dustymon111/rag-llm-cv-reviewer.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "worker:dev": "tsx watch src/queue/index.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p .",
+    "ingest": "tsx src/pipeline/ingest.ts",
+    "worker": "node -e \"import('./dist/queue/index.js')\"",
+    "db:init": "sqlite3 ai_eval.db \".read src/db/schema.sql\"",
+    "db:init:node": "tsx src/db/init.ts"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.5.1",
+    "better-sqlite3": "^12.4.1",
+    "bullmq": "^5.60.0",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.6",
+    "express": "^5.1.0",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "openai": "^6.1.0",
+    "pdfjs-dist": "^5.4.149",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.0.0",
+    "drizzle-kit": "^0.31.5",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}
