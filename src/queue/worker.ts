@@ -1,8 +1,27 @@
 import { Queue, Worker, QueueEvents, type JobsOptions } from 'bullmq';
-import { db } from '../db/client.js';
-import { jobs as jobsTable, results as resultsTable, files as filesTable } from '../db/schema.js';
+import { db } from '../db/client.ts';
+import { jobs as jobsTable, results as resultsTable, files as filesTable } from '../db/schema.ts';
 import { eq } from 'drizzle-orm';
-import { runPipeline } from '../pipeline/evaluate.js';
+import { runPipeline } from '../pipeline/evaluate.ts';
+import { Redis } from 'ioredis';
+
+import 'dotenv/config';
+
+console.log('[env] LLM_PROVIDER =', process.env.LLM_PROVIDER);
+console.log('[env] GROQ_BASE_URL =', process.env.GROQ_BASE_URL);
+console.log('[env] GROQ_MODEL    =', process.env.GROQ_MODEL);
+console.log('[env] GROQ_API_KEY? =', process.env.GROQ_API_KEY ? 'present' : 'missing');
+
+
+(async () => {
+    try {
+        const ping = new Redis(process.env.REDIS_URL!)
+        const pong = await ping.ping()
+        console.log(`[worker] booting… redis ping: ${pong}`);
+    } catch (e: any) {
+        console.error('[worker] cannot reach Redis:', e?.message || e);
+    }
+})();
 
 
 const connection = { url: process.env.REDIS_URL } as any;
@@ -56,19 +75,16 @@ export const worker = new Worker<EvalJobData>('eval', async (job) => {
 }, { connection: { url: process.env.REDIS_URL! }, concurrency: 2 });
 
 
+worker.on('ready', () => console.log('[worker] ready (listening for jobs)'));
+
+
 worker.on('failed', async (job, err) => {
-    const id = (job?.data as any)?.jobId; if (!id) return;
+    const id = (job?.data as EvalJobData)?.jobId; if (!id) return;
     await db.update(jobsTable).set({ status: 'failed', error: err.message }).where(eq(jobsTable.id, id));
 });
 
 
 worker.on('completed', async (job) => {
-    const id = (job?.data as any)?.jobId; if (!id) return;
+    const id = (job?.data as EvalJobData)?.jobId; if (!id) return;
     await db.update(jobsTable).set({ status: 'completed' }).where(eq(jobsTable.id, id));
 });
-
-
-export async function enqueueEval(jobId: number) {
-    const opts: JobsOptions = { attempts: 3, backoff: { type: 'exponential', delay: 2000 } };
-    await evalQueue.add('evaluate', { jobId }, opts);
-}

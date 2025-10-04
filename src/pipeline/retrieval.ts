@@ -55,6 +55,11 @@ export function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {
 
 
 export async function ingestDocs(docs: { id: string, source: string, text: string }[]) {
+    if (!docs.length) {
+        console.warn('[ingest] nothing to insert');
+        return;
+    }
+
     const embs = await embed(docs.map(d => d.text));
     const insert = db.insert(vectors).values(docs.map((d, i) => ({
         docId: d.id,

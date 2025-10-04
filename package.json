@@ -16,7 +16,7 @@
   "main": "index.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "worker:dev": "tsx watch src/queue/index.ts",
+    "worker:dev": "tsx watch src/queue/worker.ts",
     "start": "node dist/server.js",
     "build": "tsc -p .",
     "ingest": "tsx src/pipeline/ingest.ts",
@@ -31,6 +31,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.6",
     "express": "^5.1.0",
+    "ioredis": "^5.8.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "openai": "^6.1.0",

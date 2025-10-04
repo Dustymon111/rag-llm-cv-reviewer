@@ -1,28 +1,39 @@
-// src/pipeline/pdf.ts
 import * as fs from 'fs/promises';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-// Do NOT set GlobalWorkerOptions.workerSrc in Node.
-// Just disable the worker per document via init params (cast to any).
+function cleanText(s: string): string {
+    // remove non-printables, collapse whitespace
+    return s
+        .replace(/[^\S\r\n]+/g, ' ')         // collapse spaces/tabs
+        .replace(/[\u0000-\u001F\u007F]/g, '') // control chars
+        .replace(/\s+\n/g, '\n')
+        .replace(/\n\s+/g, '\n')
+        .trim();
+}
 
 export async function readPdfText(path: string): Promise<string> {
-    const data = await fs.readFile(path);
+    const buf = await fs.readFile(path); // Buffer
+    const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
 
-    // TS types for pdfjs don't include `disableWorker`, so cast to any.
-    // This runs fine in Node and avoids the worker entirely.
-    const loadingTask = pdfjsLib.getDocument({ data, disableWorker: true } as any);
-
+    // disableWorker via cast (Node-safe)
+    const loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true } as any);
     const doc = await loadingTask.promise;
-    let text = '';
+
+    let parts: string[] = [];
 
     for (let p = 1; p <= doc.numPages; p++) {
         const page = await doc.getPage(p);
-        const content = await page.getTextContent();
-        const strings = content.items
+        // normalize whitespace helps in many PDFs
+        const content = await page.getTextContent({ normalizeWhitespace: true } as any);
+
+        const text = content.items
             .map((it: any) => (typeof it.str === 'string' ? it.str : ''))
-            .filter(Boolean);
-        text += strings.join(' ') + '\n\n';
+            .filter(Boolean)
+            .join(' ');
+
+        const cleaned = cleanText(text);
+        if (cleaned) parts.push(cleaned);
     }
 
-    return text.trim();
+    return cleanText(parts.join('\n\n'));
 }

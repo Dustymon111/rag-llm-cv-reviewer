@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
 import { jobs } from '../db/schema.js';
-import { enqueueEval } from '../queue/index.js';
+import { enqueueEval } from '../queue/queue.js';
 import { ensureOne } from '../utils/db.js';
 
 

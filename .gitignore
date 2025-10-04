@@ -15,7 +15,9 @@ pnpm-debug.log*
 
 # App data
 ai_eval.db
+data/
 data/uploads/
+data/system_docs/
 data/system_docs/*.pdf
 !data/system_docs/.keep
 
