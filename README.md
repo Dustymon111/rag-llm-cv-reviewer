@@ -51,15 +51,15 @@ A backend service that:
 
 ```bash
 ## Create .env (no quotes around values):
-- PORT=8000
-- REDIS_URL=redis://127.0.0.1:6379
+PORT=8000
+REDIS_URL=redis://127.0.0.1:6379
 ## SQLite path (if you use a custom one)
-- SQLITE_PATH=./abc.db
+SQLITE_PATH=./abc.db
 ## Groq (OpenAI-compatible)
-- LLM_PROVIDER=groq
-- GROQ_BASE_URL=https://api.groq.com/openai/v1
-- GROQ_MODEL=llama-3.1-8b-instant (You could choose other models)
-- GROQ_API_KEY=gsk_******************************** (Create groq API KEY first)
+LLM_PROVIDER=groq
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_MODEL=llama-3.1-8b-instant (You could choose other models)
+GROQ_API_KEY=gsk_******************************** (Create groq API KEY first)
 ```
 
 # Install & Setup
@@ -266,5 +266,6 @@ npm run dev
 - RAG: exact cosine search over local embeddings; filtered by filename to keep JD/Brief/Rubrics distinct.
 
 - Prompts: system messages enforce strict JSON output; low temperature (0.1–0.2) for consistency.
+
 
 
