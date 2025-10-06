@@ -71,17 +71,6 @@ npm ci
 ## Start Redis (Docker)
 docker run -p 6379:6379 --name redis -d redis:7
 ```
-## Verify
-### Prepare Ground-Truth PDFs
-
-Put Ground Truth PDFs under data/system_docs/:
-- job_descriptions.pdf
-- case_study_brief.pdf
-- cv_scoring_rubric.pdf
-- project_scoring_rubric.pdf
-
-#### If a PDF is image-only, OCR it first so text can be parsed.
-
 # Create the Database
 
 ### Using Drizzle (recommended):
@@ -95,6 +84,36 @@ npx drizzle-kit push
 npx drizzle-kit generate
 npx drizzle-kit migrate
 ```
+
+# Running The App
+Please mind that you have to run the redis container first for the worker and server to run   correctly.
+### Open two terminals:
+#### A) Worker (queue consumer):
+```bash
+npm run worker:dev
+
+## [worker] ready (listening for jobs)
+```
+
+#### B) API server:
+
+```bash
+npm run dev
+
+# API on :8000
+```
+
+## Verify
+### Prepare Ground-Truth PDFs
+
+Put Ground Truth PDFs under data/system_docs/, after you npm run dev to initiate multer to create the folders:
+- job_descriptions.pdf
+- case_study_brief.pdf
+- cv_scoring_rubric.pdf
+- project_scoring_rubric.pdf
+
+#### If a PDF is image-only, OCR it first so text can be parsed.
+
 ## Ingest System Docs (build the vector store)
 ```bash
 npm run ingest
@@ -107,26 +126,9 @@ You should see logs like:
 Ingested chunks: 5
 ```
 
-# Running The App
-
-### Open two terminals:
-
-#### A) Worker (queue consumer):
-```bash
-npm run worker:dev
-
-## [worker] ready (listening for jobs)
-```
-
-#### B) API server:
-
-```bash
-npm run dev
-# API on :8000
-```
-
 # Usage (Upload → Evaluate → Get Result)
-## 1) Upload PDFs (multipart form)
+Note: You can use API Platform such as Postman to upload the files easier.
+### 1) Upload PDFs (multipart form)
 ```bash
 ## Windows PowerShell
 
@@ -148,24 +150,24 @@ curl -X POST "http://localhost:8000/upload" \
 ## Response
 ## {"cv_id":1,"report_id":2}
 ```
-## 2) Enqueue an Evaluation (non-blocking)
+### 2) Enqueue an Evaluation (non-blocking)
 
-### Use the cv_id and report_id from /upload.
+Note: Use the cv_id and report_id from /upload.
 
 
 ```bash
 # Mind that cv_id and report_id will be obtained on JSON after uploading cv and report in /upload
-## Windows PowerShell
+## Adjust job_title into the one that you want to apply
+## adjust cv_id and report_id value that you get after /upload (usually it will be 1 & 2, 3 & 4, 5 & 6, ...)
 
+## Windows PowerShell
 $body = @{ job_title = "Backend Engineer"; cv_id = 1; report_id = 2 } | ConvertTo-Json
 Invoke-RestMethod -Method POST -Uri "http://localhost:8000/evaluate" -ContentType "application/json" -Body $body
 
 ## macOS/Linux
-
 curl -X POST "http://localhost:8000/evaluate" \
   -H "Content-Type: application/json" \
   -d '{"job_title":"Backend Engineer","cv_id":1,"report_id":2}'
-
 
 ## Response
 ## {"id":6,"status":"queued"}
@@ -174,6 +176,7 @@ curl -X POST "http://localhost:8000/evaluate" \
 
 ## 3) Poll the Result
 ```bash
+## Windows PowerShell
 curl "http://localhost:8000/result/6"
 ```
 
@@ -227,17 +230,11 @@ Ensure:
 #### Scanned PDFs → empty text
 OCR the PDFs first so readPdfText can extract text.
 
-#### Rate limits (429) or timeouts
-The worker has exponential backoff retries; the LLM client should also retry with jitter on 429/5xx.
-
 #### Job IDs keep increasing
 That’s Redis. To reset (dev only):
 ```bash
 docker exec -it redis redis-cli FLUSHALL
 ```
-
-#### JSON body errors in curl (Windows)
-Use PowerShell’s ConvertTo-Json, or carefully escape quotes.
 
 # Reset (Dev)
 
@@ -257,15 +254,7 @@ npm run ingest
 npm run worker:dev
 npm run dev
 ```
-# Notes & Design Choices
 
-- Non-blocking /evaluate: only enqueues and returns; chaining runs in worker.
-
-- Idempotency: unique index on results(job_id) + onConflictDoNothing().
-
-- RAG: exact cosine search over local embeddings; filtered by filename to keep JD/Brief/Rubrics distinct.
-
-- Prompts: system messages enforce strict JSON output; low temperature (0.1–0.2) for consistency.
 
 
 
