@@ -21,8 +21,9 @@
     "build": "tsc -p .",
     "ingest": "tsx src/pipeline/ingest.ts",
     "worker": "node -e \"import('./dist/queue/index.js')\"",
-    "db:init": "sqlite3 ai_eval.db \".read src/db/schema.sql\"",
-    "db:init:node": "tsx src/db/init.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@xenova/transformers": "^2.5.1",
@@ -35,8 +36,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "openai": "^6.1.0",
-    "pdfjs-dist": "^5.4.149",
-    "zod": "^4.1.11"
+    "pdfjs-dist": "^5.4.149"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

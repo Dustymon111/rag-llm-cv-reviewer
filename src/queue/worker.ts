@@ -4,6 +4,7 @@ import { jobs as jobsTable, results as resultsTable, files as filesTable } from 
 import { eq } from 'drizzle-orm';
 import { runPipeline } from '../pipeline/evaluate.ts';
 import { Redis } from 'ioredis';
+import { fromBullTimestamp } from '../utils/stopwatch.ts';
 
 import 'dotenv/config';
 
@@ -38,9 +39,14 @@ function ensureOne<T>(rows: T[], msg: string): T {
 
 // Worker
 export const worker = new Worker<EvalJobData>('eval', async (job) => {
+    const sw = fromBullTimestamp(job.timestamp);
     const { jobId } = job.data as { jobId: number };
 
+    console.log(`[worker] job ${job.id} attempt ${job.attemptsMade + 1}/${job.opts.attempts}`);
+
     try {
+        await db.update(jobsTable).set({ status: 'active', error: null }).where(eq(jobsTable.id, jobId));
+
         const jobRow = ensureOne(
             await db.select().from(jobsTable).where(eq(jobsTable.id, jobId)),
             `Job ${jobId} not found`
@@ -65,12 +71,19 @@ export const worker = new Worker<EvalJobData>('eval', async (job) => {
             projectScore: out.result.project_score,
             projectFeedback: out.result.project_feedback,
             overallSummary: out.result.overall_summary
-        });
-    } catch (err: any) {
+        }).onConflictDoNothing({ target: resultsTable.jobId });
+
+        const t = sw.endNow();
         await db.update(jobsTable)
-            .set({ status: 'failed', error: String(err?.message ?? err) })
-            .where(eq(jobsTable.id, jobId));
-        throw err; // keep BullMQ aware of the failure (for retries)
+            .set({ status: 'completed', finishedAt: new Date(t.finished), totalMs: t.totalMs })
+            .where(eq(jobsTable.id, job.data.jobId));
+
+    } catch (err: any) {
+        const t = sw.endNow();
+        await db.update(jobsTable)
+            .set({ status: 'failed', error: String(err?.message ?? err), finishedAt: new Date(t.finished), totalMs: t.totalMs })
+            .where(eq(jobsTable.id, job.data.jobId));
+        throw err;
     }
 }, { connection: { url: process.env.REDIS_URL! }, concurrency: 2 });
 
@@ -79,12 +92,10 @@ worker.on('ready', () => console.log('[worker] ready (listening for jobs)'));
 
 
 worker.on('failed', async (job, err) => {
-    const id = (job?.data as EvalJobData)?.jobId; if (!id) return;
-    await db.update(jobsTable).set({ status: 'failed', error: err.message }).where(eq(jobsTable.id, id));
+    console.log("Job has failed, retrying for 3 attempts");
 });
 
 
 worker.on('completed', async (job) => {
-    const id = (job?.data as EvalJobData)?.jobId; if (!id) return;
-    await db.update(jobsTable).set({ status: 'completed' }).where(eq(jobsTable.id, id));
+    console.log("Job has been completed");
 });

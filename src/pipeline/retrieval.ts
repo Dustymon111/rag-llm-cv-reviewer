@@ -2,7 +2,6 @@
 import { pipeline } from '@xenova/transformers';
 import { db } from '../db/client.js';
 import { vectors } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
 
 
 type VectorRow = {

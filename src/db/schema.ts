@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text, unique, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const files = sqliteTable('files', {
@@ -16,19 +16,24 @@ export const jobs = sqliteTable('jobs', {
     cvFileId: integer('cv_file_id').notNull(),
     reportFileId: integer('report_file_id').notNull(),
     status: text('status').default('queued'),
-    error: text('error')
+    error: text('error'),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+    totalMs: real('total_ms'),
 });
 
 
 export const results = sqliteTable('results', {
     id: integer('id').primaryKey({ autoIncrement: true }),
     jobId: integer('job_id').notNull(),
-    cvMatchRate: real('cv_match_rate').notNull(),
-    cvFeedback: text('cv_feedback').notNull(),
-    projectScore: real('project_score').notNull(),
-    projectFeedback: text('project_feedback').notNull(),
-    overallSummary: text('overall_summary').notNull()
-});
+    cvMatchRate: integer('cv_match_rate'),
+    cvFeedback: text('cv_feedback'),
+    projectScore: integer('project_score'),
+    projectFeedback: text('project_feedback'),
+    overallSummary: text('overall_summary')
+}, (t) => ({
+    uxResultsJobId: unique('ux_results_jobId').on(t.jobId),
+}));
 
 
 export const vectors = sqliteTable('vectors', {

@@ -1,4 +1,4 @@
-import { readPdfText } from './pdf.js';
+import { readPdfText } from './pdf.ts';
 
 export async function pdfText(path: string) {
     return readPdfText(path);

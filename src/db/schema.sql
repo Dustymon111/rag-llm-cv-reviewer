@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS results (
   project_score REAL NOT NULL,
   project_feedback TEXT NOT NULL,
   overall_summary TEXT NOT NULL
+  ux_results_jobId INTEGER NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS vectors (

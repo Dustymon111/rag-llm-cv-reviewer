@@ -15,7 +15,7 @@ evaluateRouter.post('/evaluate', async (req, res) => {
     // Database Insertion
     const row = await db.insert(jobs).values({ jobTitle: job_title, cvFileId: Number(cv_id), reportFileId: Number(report_id), status: 'queued' }).returning();
 
-    // Undefine Checking
+    // Undefined Checking
     const { id } = ensureOne(row, 'Insert failed: no job row returned');
 
     await enqueueEval(id);

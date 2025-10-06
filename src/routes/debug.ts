@@ -1,4 +1,3 @@
-// src/routes/debug.ts
 import { Router } from 'express';
 import { db } from '../db/client.js';
 import { vectors } from '../db/schema.js';
@@ -11,7 +10,7 @@ debugRouter.get('/debug/vectors', async (_req, res) => {
     res.json({
         total: rows.length,
         bySource,
-        sample: rows.slice(0, 3).map((r: any) => ({
+        sample: rows.map((r: any) => ({
             id: r.id, source: r.source, preview: r.text.slice(0, 120) + (r.text.length > 120 ? '…' : '')
         }))
     });
