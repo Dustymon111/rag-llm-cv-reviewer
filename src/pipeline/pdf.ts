@@ -1,39 +1,25 @@
-import * as fs from 'fs/promises';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { readFile } from 'fs/promises';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+const pdfParse: (buf: Buffer) => Promise<{ text?: string }> = require('pdf-parse');
 
 function cleanText(s: string): string {
-    // remove non-printables, collapse whitespace
     return s
-        .replace(/[^\S\r\n]+/g, ' ')         // collapse spaces/tabs
-        .replace(/[\u0000-\u001F\u007F]/g, '') // control chars
+        .replace(/[^\S\r\n]+/g, ' ')
+        .replace(/[\u0000-\u001F\u007F]/g, '')
         .replace(/\s+\n/g, '\n')
         .replace(/\n\s+/g, '\n')
         .trim();
 }
 
 export async function readPdfText(path: string): Promise<string> {
-    const buf = await fs.readFile(path); // Buffer
-    const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    const buf = await readFile(path);
+    const res = await pdfParse(buf);
+    const text = cleanText(res?.text ?? '');
 
-    // disableWorker via cast (Node-safe)
-    const loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true } as any);
-    const doc = await loadingTask.promise;
-
-    let parts: string[] = [];
-
-    for (let p = 1; p <= doc.numPages; p++) {
-        const page = await doc.getPage(p);
-        // normalize whitespace helps in many PDFs
-        const content = await page.getTextContent({ normalizeWhitespace: true } as any);
-
-        const text = content.items
-            .map((it: any) => (typeof it.str === 'string' ? it.str : ''))
-            .filter(Boolean)
-            .join(' ');
-
-        const cleaned = cleanText(text);
-        if (cleaned) parts.push(cleaned);
+    if (!text) {
+        console.warn(`[pdf] No extractable text from ${path}. If this is a scanned PDF, OCR it first.`);
     }
-
-    return cleanText(parts.join('\n\n'));
+    return text;
 }
