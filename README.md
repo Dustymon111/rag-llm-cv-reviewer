@@ -1,158 +1,143 @@
-AI CV & Project Evaluator (Node.js + RAG)
+# AI CV & Project Evaluator (Node.js + RAG)
 
 A backend service that:
+- parses CV and Project Report PDFs,
+- retrieves ground truth from Job Description & Case Study Brief (+ optional rubrics) via a local vector store (SQLite),
+- uses an LLM (Groq) to score and give feedback,
+- runs asynchronously with BullMQ + Redis,
 
-parses CV and Project Report PDFs,
+- returns a final, strict-JSON evaluation.
 
-retrieves ground truth from Job Description & Case Study Brief (+ optional rubrics) via a local vector store (SQLite),
+# Features
 
-uses an LLM (Groq) to score and give feedback,
+1. Upload CV & Project Report as PDFs (/upload)
 
-runs asynchronously with BullMQ + Redis,
+2. Queue an evaluation (/evaluate) — non-blocking; worker does the heavy lifting
 
-returns a final, strict-JSON evaluation.
+3. Retrieve results (/result/:id) — JSON: CV match, project score, feedback, summary
 
-Features
+4. RAG over ground-truth PDFs (Job Description, Brief, Rubrics)
 
-Upload CV & Project Report as PDFs (/upload)
+5. Local embeddings with Xenova
 
-Queue an evaluation (/evaluate) — non-blocking; worker does the heavy lifting
+6. Retry & backoff (Job Level)
 
-Retrieve results (/result/:id) — JSON: CV match, project score, feedback, summary
+7. Stopwatch (optional): queue→complete timing
 
-RAG over ground-truth PDFs (JD, Brief, Rubrics)
+# Architecture
 
-Local embeddings with Xenova (no paid vector DB)
+- API: Node.js + Express
 
-Retry & backoff (queue-level + LLM call-level)
+- Worker: BullMQ (Redis-backed queue)
 
-Stopwatch (optional): queue→complete timing
+- Queue: Redis (Docker)
 
-Architecture
+- DB: SQLite + Drizzle ORM
 
-API: Node.js + Express
+- PDF parsing: pdfjs-dist (Node legacy build)
 
-Worker: BullMQ (Redis-backed queue)
+- Embeddings: Xenova all-MiniLM-L6-v2
 
-Queue: Redis (Docker)
-
-DB: SQLite + Drizzle ORM
-
-PDF parsing: pdfjs-dist (Node legacy build)
-
-Embeddings: Xenova all-MiniLM-L6-v2
-
-LLM: Groq (OpenAI-compatible API)
-
-/upload  --> [files]        \
-/evaluate -> [jobs + queue]  --> worker: parse -> retrieve -> LLM -> save [results]
-/result/:id                 /                        ^
-                             \------ Redis ----------/
-
-Requirements
-
-Node.js 20+
-
-Docker Desktop (for Redis)
-
-Groq API key (free tier works)
-
-Environment
-
-Create .env (no quotes around values):
-
-PORT=8000
-
-# Redis
-REDIS_URL=redis://127.0.0.1:6379
-
-# SQLite path (if you use a custom one)
-SQLITE_PATH=./ai_eval.db
-
-# Groq (OpenAI-compatible)
-LLM_PROVIDER=groq
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-GROQ_MODEL=llama-3.1-8b-instant
-GROQ_API_KEY=gsk_********************************
+- LLM: Groq (OpenAI-compatible API)
 
 
-Important: GROQ_API_KEY should be the raw key (gsk_...). Do not prefix with Bearer.
+# Requirements
 
-Install & Setup
-# 1) clone & install
-git clone <your-repo-url>
-cd llm-rag-cv-reviewer
-npm ci
+- Node.js 20+
+- Docker Desktop (for Redis)
+- Groq API key (free tier)
 
-Start Redis (Docker)
+# Environment
+
+```bash
+## Create .env (no quotes around values):
+- PORT=8000
+- REDIS_URL=redis://127.0.0.1:6379
+## SQLite path (if you use a custom one)
+- SQLITE_PATH=./abc.db
+## Groq (OpenAI-compatible)
+- LLM_PROVIDER=groq
+- GROQ_BASE_URL=https://api.groq.com/openai/v1
+- GROQ_MODEL=llama-3.1-8b-instant (You could choose other models)
+- GROQ_API_KEY=gsk_******************************** (Create groq API KEY first)
+```
+
+# Install & Setup
+## Clone & install
+```bash
+- git clone https://github.com/Dustymon111/rag-llm-cv-reviewer
+- cd llm-rag-cv-reviewer
+- npm ci
+## Start Redis (Docker)
 docker run -p 6379:6379 --name redis -d redis:7
-# verify
-docker logs redis --tail=10
+```
+## Verify
+### Prepare Ground-Truth PDFs
 
-Prepare Ground-Truth PDFs (RAG Corpus)
+Put Ground Truth PDFs under data/system_docs/:
+- job_descriptions.pdf
+- case_study_brief.pdf
+- cv_scoring_rubric.pdf
+- project_scoring_rubric.pdf
 
-Put PDFs under data/system_docs/:
+#### If a PDF is image-only, OCR it first so text can be parsed.
 
-job_descriptions.pdf
+# Create the Database
 
-case_study_brief.pdf
+### Using Drizzle (recommended):
 
-cv_scoring_rubric.pdf (optional but recommended)
-
-project_scoring_rubric.pdf (optional but recommended)
-
-If a PDF is image-only, OCR it first so text can be parsed.
-
-Create the Database
-
-Using Drizzle (recommended):
-
-# fastest dev path
+Fastest dev path:
+```bash
 npx drizzle-kit push
-# OR, if you want migration files:
+```
+## OR, if you want migration files:
+```bash
 npx drizzle-kit generate
 npx drizzle-kit migrate
-
-Ingest System Docs (build the vector store)
+```
+## Ingest System Docs (build the vector store)
+```bash
 npm run ingest
-
+```
 
 You should see logs like:
-
+```bash
 [ingest] job_descriptions.pdf → 2 chunks
 [ingest] case_study_brief.pdf → 3 chunks
 Ingested chunks: 5
+```
 
-Run
+# Running The App
 
-Open two terminals:
+### Open two terminals:
 
-A) Worker (queue consumer):
-
+#### A) Worker (queue consumer):
+```bash
 npm run worker:dev
-# [worker] ready (listening for jobs)
 
+## [worker] ready (listening for jobs)
+```
 
-B) API server:
+#### B) API server:
 
+```bash
 npm run dev
 # API on :8000
+```
 
-Usage (Upload → Evaluate → Get Result)
-1) Upload PDFs (multipart form)
+# Usage (Upload → Evaluate → Get Result)
+## 1) Upload PDFs (multipart form)
+```bash
+## Windows PowerShell
 
-Windows PowerShell
-
-# optional: if you use auth
-$env:TOKEN = "gsk_...your_token..."
-
+$TOKEN = "gsk_...your_token..."
 curl.exe -X POST "http://localhost:8000/upload" `
   -H "Authorization: Bearer $env:TOKEN" `
   -F "cv=@F:\path\to\CV.pdf;type=application/pdf" `
   -F "report=@F:\path\to\report.pdf;type=application/pdf"
 
 
-macOS/Linux (or Git Bash)
+## macOS/Linux (or Git Bash)
 
 TOKEN="gsk_...your_token..."
 curl -X POST "http://localhost:8000/upload" \
@@ -160,42 +145,42 @@ curl -X POST "http://localhost:8000/upload" \
   -F "cv=@/path/to/CV.pdf;type=application/pdf" \
   -F "report=@/path/to/report.pdf;type=application/pdf"
 
+## Response
+## {"cv_id":1,"report_id":2}
+```
+## 2) Enqueue an Evaluation (non-blocking)
 
-Response
+### Use the cv_id and report_id from /upload.
 
-{"cv_id":1,"report_id":2}
 
-2) Enqueue an Evaluation (non-blocking)
-
-Use the cv_id and report_id from /upload.
-
-Windows PowerShell
+```bash
+# Mind that cv_id and report_id will be obtained on JSON after uploading cv and report in /upload
+## Windows PowerShell
 
 $body = @{ job_title = "Backend Engineer"; cv_id = 1; report_id = 2 } | ConvertTo-Json
 Invoke-RestMethod -Method POST -Uri "http://localhost:8000/evaluate" -ContentType "application/json" -Body $body
 
-
-macOS/Linux
+## macOS/Linux
 
 curl -X POST "http://localhost:8000/evaluate" \
   -H "Content-Type: application/json" \
   -d '{"job_title":"Backend Engineer","cv_id":1,"report_id":2}'
 
 
-Response
+## Response
+## {"id":6,"status":"queued"}
+## /evaluate returns immediately. The worker runs the chain in the background.
+```
 
-{"id":6,"status":"queued"}
-
-
-/evaluate returns immediately. The worker runs the chain in the background.
-
-3) Poll the Result
+## 3) Poll the Result
+```bash
 curl "http://localhost:8000/result/6"
+```
 
+You’ll see queued → completed (or failed).
 
-You’ll see queued → active → completed (or failed).
 On success:
-
+```bash
 {
   "id": 6,
   "status": "completed",
@@ -207,98 +192,78 @@ On success:
     "overall_summary": "…"
   }
 }
+```
 
-Optional Debug / Stopwatch
-
-If you kept these helpers:
-
-Queue state
-
-GET /debug/queue
-
-
-Vector store counts
-
+### Optional Debug
+#### Vector store counts
+```bash
 GET /debug/vectors
+```
 
-
-Stopwatch (submit → complete)
-
-GET /stopwatch/:id
-
-Scripts (common)
+## Scripts (common)
+```bash
 {
-  "scripts": {
+"scripts": {
     "dev": "tsx watch src/server.ts",
-    "worker:dev": "tsx watch src/queue/index.ts",
+    "worker:dev": "tsx watch src/queue/worker.ts",
     "ingest": "tsx src/pipeline/ingest.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push"
-  }
-}
+},
+```
 
+# Troubleshooting
 
-(Your repo may differ slightly — keep README in sync with your actual scripts.)
+### CV file X not found
+- You reset the DB; re-upload via /upload to get new cv_id/report_id, then re-run /evaluate.
 
-Troubleshooting
-
-CV file X not found
-You reset the DB; re-upload via /upload to get new cv_id/report_id, then re-run /evaluate.
-
-404 The model ... does not exist
+#### 404 The model ... does not exist
 Ensure:
+- GROQ_BASE_URL=https://api.groq.com/openai/v1
+- GROQ_MODEL=llama-3.1-8b-instant
+- GROQ_API_KEY=gsk_… (no “Bearer ”)
 
-GROQ_BASE_URL=https://api.groq.com/openai/v1
-
-GROQ_MODEL=llama-3.1-8b-instant
-
-GROQ_API_KEY=gsk_… (no “Bearer ”)
-
-Custom Id cannot be integers (BullMQ)
-If you set a custom jobId, make it a string (e.g., eval:1), not a pure integer.
-
-Scanned PDFs → empty text
+#### Scanned PDFs → empty text
 OCR the PDFs first so readPdfText can extract text.
 
-Rate limits (429) or timeouts
+#### Rate limits (429) or timeouts
 The worker has exponential backoff retries; the LLM client should also retry with jitter on 429/5xx.
 
-Job IDs keep increasing
+#### Job IDs keep increasing
 That’s Redis. To reset (dev only):
-
+```bash
 docker exec -it redis redis-cli FLUSHALL
+```
 
-
-JSON body errors in curl (Windows)
+#### JSON body errors in curl (Windows)
 Use PowerShell’s ConvertTo-Json, or carefully escape quotes.
 
-Reset (Dev)
+# Reset (Dev)
 
-Full fresh run:
-
-# reset DB
+### Full fresh run:
+```bash
+## reset DB
 rm -f ai_eval.db
 npx drizzle-kit push
 
-# reset Redis (clears queues & counters)
+## reset Redis (clears queues & counters)
 docker exec -it redis redis-cli FLUSHALL
 
-# re-ingest ground-truth PDFs
+## re-ingest ground-truth PDFs
 npm run ingest
 
-# start services
+## start services
 npm run worker:dev
 npm run dev
+```
+# Notes & Design Choices
 
-Notes & Design Choices
+- Non-blocking /evaluate: only enqueues and returns; chaining runs in worker.
 
-Non-blocking /evaluate: only enqueues and returns; chaining runs in worker.
+- Idempotency: unique index on results(job_id) + onConflictDoNothing().
 
-Idempotency: unique index on results(job_id) + onConflictDoNothing().
+- RAG: exact cosine search over local embeddings; filtered by filename to keep JD/Brief/Rubrics distinct.
 
-RAG: exact cosine search over local embeddings; filtered by filename to keep JD/Brief/Rubrics distinct.
+- Prompts: system messages enforce strict JSON output; low temperature (0.1–0.2) for consistency.
 
-Prompts: system messages enforce strict JSON output; low temperature (0.1–0.2) for consistency.
-
-Stopwatch: you can compute end-to-end time from BullMQ timestamps (timestamp → finishedOn), or store total_ms on jobs/results.
