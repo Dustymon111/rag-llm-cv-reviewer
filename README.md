@@ -65,9 +65,9 @@ A backend service that:
 # Install & Setup
 ## Clone & install
 ```bash
-- git clone https://github.com/Dustymon111/rag-llm-cv-reviewer
-- cd llm-rag-cv-reviewer
-- npm ci
+git clone https://github.com/Dustymon111/rag-llm-cv-reviewer
+cd llm-rag-cv-reviewer
+npm ci
 ## Start Redis (Docker)
 docker run -p 6379:6379 --name redis -d redis:7
 ```
@@ -266,4 +266,5 @@ npm run dev
 - RAG: exact cosine search over local embeddings; filtered by filename to keep JD/Brief/Rubrics distinct.
 
 - Prompts: system messages enforce strict JSON output; low temperature (0.1–0.2) for consistency.
+
 
